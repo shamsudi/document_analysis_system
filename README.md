@@ -47,7 +47,6 @@ A FastAPI-based document analysis system that processes PDF and DOCX files, gene
    wsl --install -d Ubuntu-22.04
    wsl --set-default-version 2
 
-```
 
 1.  **Install NVIDIA CUDA Drivers**:
 
