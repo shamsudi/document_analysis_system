@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# Documents (exclude actual files, keep folder structure)
+documents/**/*.pdf
+documents/**/*.docx
+
+# ChromaDB data
+chroma_db/*
+
+# Ollama model data
+ollama-data/*
+
+# Redis and Prometheus data
+redis-data/*
+prometheus-data/*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Miscellaneous
+*.bak
+*.swp
+*~
+.DS_Store

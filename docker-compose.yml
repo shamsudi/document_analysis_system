@@ -1,0 +1,173 @@
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  prometheus-data:
+  ollama-data:
+  chroma-data:
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_URL=${REDIS_URL}
+      - VECTOR_DB_URL=${VECTOR_DB_URL}
+      - LLAMA_URL=${LLAMA_URL}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - DOCUMENTS_PATH=${DOCUMENTS_PATH}
+      - VECTOR_DB_API_KEY=${VECTOR_DB_API_KEY}
+    volumes:
+      - ./documents:/app/documents
+      - ./chroma_db:/app/chroma_db
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    depends_on:
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      vector-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 300s
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 6G
+        reservations:
+          cpus: "2"
+          memory: 4G
+
+  redis:
+    image: redis:7
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.2"
+          memory: 256M
+
+  ollama:
+    image: ollama/ollama:0.6.6
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=http://0.0.0.0:11434
+      - OLLAMA_LOAD_TIMEOUT=20m
+      - OLLAMA_MAX_LOADED_MODELS=2
+      - OLLAMA_N_CTX=2048
+      - OLLAMA_BATCH_SIZE=32
+      - OLLAMA_NUM_PARALLEL=4
+      - OLLAMA_NUM_GPU=999
+    ports:
+      - "51134:11434"
+    healthcheck:
+      test: ["CMD", "/bin/ollama", "list"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 180s
+    networks:
+      - app-network
+    stop_grace_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "6"
+          memory: 10G
+        reservations:
+          cpus: "4"
+          memory: 8G
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  vector-db:
+    image: chromadb/chroma:0.5.11
+    volumes:
+      - chroma-data:/data
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/data
+    ports:
+      - "5080:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8000/api/v1/heartbeat || exit 1"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 60s
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - app-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.2"
+          memory: 256M
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
+    restart: unless-stopped
