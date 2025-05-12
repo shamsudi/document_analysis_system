@@ -1,4 +1,3 @@
-```
 # Document Analysis System
 
 A FastAPI-based document analysis system that processes PDF and DOCX files, generates embeddings using `nomic-embed-text`, and answers queries using the Mistral 7B language model. The system leverages GPU acceleration for efficient embedding and inference, with a modular architecture including a backend, frontend, vector store (ChromaDB), Redis cache, and Prometheus monitoring.
