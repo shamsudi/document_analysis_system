@@ -192,5 +192,3 @@ Notes
         docker compose exec ollama ollama list
 
         ```
-
-```
